@@ -6,7 +6,7 @@ export function Tracked({ children }: { children: ReactNode }) {
 
   function handleClick(e: MouseEvent) {
     if (activeVariantId) {
-      client.trackConversion(activeVariantId);
+      void client.trackConversion(activeVariantId);
     }
   }
 

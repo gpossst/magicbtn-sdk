@@ -17,19 +17,19 @@ export function Experiment({ children }: { children: ReactNode }) {
   const [variantIds, setVariantIds] = useState<string[]>([]);
 
   useEffect(() => {
+    let isMounted = true;
     (async () => {
-      const data = await client.getExperimentData();
-      if (!data) return;
-
-      const ids = data.variants.map((v) => v.id);
-      setVariantIds(ids);
-
-      const variantId = await client.getOrAssignVariant();
+      const { variantId, allVariantIds } = await client.init();
+      if (!isMounted) return;
+      if (allVariantIds.length > 0) setVariantIds(allVariantIds);
       if (variantId) {
         setActiveVariantId(variantId);
-        client.trackImpression(variantId);
+        void client.trackImpression(variantId);
       }
     })();
+    return () => {
+      isMounted = false;
+    };
   }, [client]);
 
   // Auto-inject variant ids by position when Variant has no id prop

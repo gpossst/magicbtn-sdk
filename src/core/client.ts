@@ -37,9 +37,51 @@ export class ExperimentClient {
         { headers: this.headers() }
       );
       if (!res.ok) return null;
-      return (await res.json()) as ExperimentData;
+      const text = await res.text();
+      if (!text) return null;
+      return JSON.parse(text) as ExperimentData;
     } catch {
       return null;
+    }
+  }
+
+  async init(): Promise<{ variantId: string | null; allVariantIds: string[] }> {
+    const storedVariant = getStoredVariant(this.experimentId);
+    try {
+      const res = await fetch(
+        `${this.apiBase}/api/experiment/${this.experimentId}`,
+        { headers: this.headers() }
+      );
+      if (!res.ok) {
+        return {
+          variantId: getStoredWinner(this.experimentId) ?? storedVariant,
+          allVariantIds: [],
+        };
+      }
+      const text = await res.text();
+      if (!text) {
+        return {
+          variantId: getStoredWinner(this.experimentId) ?? storedVariant,
+          allVariantIds: [],
+        };
+      }
+      const data = JSON.parse(text) as ExperimentData;
+      const allVariantIds = data.variants.map((v) => v.id);
+      if (data.status === "winner_selected" && data.winnerVariantId) {
+        setStoredWinner(this.experimentId, data.winnerVariantId);
+        return { variantId: data.winnerVariantId, allVariantIds };
+      }
+      if (storedVariant) return { variantId: storedVariant, allVariantIds };
+      const randomVariant =
+        data.variants[Math.floor(Math.random() * data.variants.length)];
+      if (!randomVariant) return { variantId: null, allVariantIds };
+      setStoredVariant(this.experimentId, randomVariant.id);
+      return { variantId: randomVariant.id, allVariantIds };
+    } catch {
+      return {
+        variantId: getStoredWinner(this.experimentId) ?? storedVariant,
+        allVariantIds: [],
+      };
     }
   }
 
@@ -59,7 +101,9 @@ export class ExperimentClient {
 
       if (!res.ok) return storedVariant;
 
-      const data = (await res.json()) as ExperimentData;
+      const text = await res.text();
+      if (!text) return storedVariant;
+      const data = JSON.parse(text) as ExperimentData;
 
       if (data.status === "winner_selected" && data.winnerVariantId) {
         setStoredWinner(this.experimentId, data.winnerVariantId);
